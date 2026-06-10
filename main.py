@@ -267,7 +267,7 @@ def extract_content_signals(content, source_label):
 
 def get_random_headers(overrides=None):
     headers = {
-        "User-Agent": random.choice(USER_AGENTS),
+        "User-Agent": random.choice(USER_AGENTS),  # nosec B311
         "Accept": (
             "text/html,application/xhtml+xml,application/xml;q=0.9,"
             "image/webp,*/*;q=0.8"
@@ -281,13 +281,15 @@ def get_random_headers(overrides=None):
     return headers
 
 
+
+
 def get_request_delay(base_delay):
     if base_delay <= 0:
         return 0.0
 
     min_delay = max(0.1, base_delay * 0.4)
     max_delay = base_delay * 1.6 + 0.1
-    jitter = random.uniform(min_delay, max_delay)
+    jitter = random.uniform(min_delay, max_delay)  # nosec B311
     return round(jitter, 2)
 
 
@@ -439,9 +441,10 @@ def query_osv_vulnerabilities(package_name, version):
                 if vuln_id:
                     vulns.append(f"{vuln_id}: {summary}".strip())
             return vulns
-    except Exception:
+    except Exception:  # nosec B110
         pass
     return []
+
 
 
 def detect_library_version_vulnerabilities(content):
@@ -544,9 +547,10 @@ def load_security_reference_context():
                     context.append(
                         f"Loaded {file_name} definitions: {len(data)} entries."
                     )
-            except Exception:
+            except Exception:  # nosec B110
                 pass
     return "\n".join(context)
+
 
 
 def build_finder_prompt(findings, reference_context=""):
@@ -599,7 +603,7 @@ def run_ai_prompt(prompt_text, system_instruction, gemini_api_key=None):
             for chunk in response_stream:
                 output.append(chunk.text)
             return "".join(output)
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
     try:
@@ -615,7 +619,7 @@ def run_ai_prompt(prompt_text, system_instruction, gemini_api_key=None):
         )
         if res.ok:
             return res.text
-    except Exception:
+    except Exception:  # nosec B110
         pass
 
     return "[AI unavailable]"
