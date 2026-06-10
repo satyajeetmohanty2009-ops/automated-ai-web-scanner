@@ -142,12 +142,9 @@ JS_SIGNAL_PATTERNS = {
 
 HTML_SIGNAL_PATTERNS = {
     "Forms & Inputs": (
-        r"(?i)<form[^>]*>|<input[^>]*>|<textarea[^>]*>|<button[^>]*>|"
-        r"<select[^>]*>"
+        r"(?i)<form[^>]*>|<input[^>]*>|<textarea[^>]*>|<button[^>]*>|" r"<select[^>]*>"
     ),
-    "Meta & Public Keys": (
-        r"(?i)<meta[^>]+>|<link[^>]+>|<script[^>]+>|<style[^>]+>"
-    ),
+    "Meta & Public Keys": (r"(?i)<meta[^>]+>|<link[^>]+>|<script[^>]+>|<style[^>]+>"),
     "Insecure Form Actions": (r'(?i)<form[^>]+action\s*=\s*["\']http:\/\/'),
     "Mixed Content Assets": (
         r'(?i)<(script|img|link|iframe)[^>]+src\s*=\s*["\']http:\/\/'
@@ -161,9 +158,7 @@ JS_LIBRARY_VERSION_PATTERNS = {
     "Angular Version": (
         r"(?i)angular(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
     ),
-    "Vue Version": (
-        r"(?i)vue(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
-    ),
+    "Vue Version": (r"(?i)vue(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"),
     "React Version": (
         r"(?i)react(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
     ),
@@ -177,9 +172,7 @@ URL_PARAMETER_RISK_PATTERNS = {
 }
 
 TOKEN_PATTERNS = {
-    "Slack Webhook": (
-        r"(?i)https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9_\/]+"
-    ),
+    "Slack Webhook": (r"(?i)https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9_\/]+"),
     "Stripe Key": (r"(?i)sk_(live|test)_[0-9A-Za-z]{24,}"),
     "Mailgun API Key": (r"(?i)key-[0-9A-Za-z]{32}"),
     "JWT": (r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"),
@@ -187,17 +180,13 @@ TOKEN_PATTERNS = {
 
 FINDING_CATEGORY_RISK_MAP = {
     "Potential Credentials": "Secret or credential exposure",
-    "API Keys & Cloud Tokens": (
-        "API key leakage or cloud credential disclosure"
-    ),
+    "API Keys & Cloud Tokens": ("API key leakage or cloud credential disclosure"),
     "Authentication Tokens": "Session/token theft or credential reuse risk",
     "Endpoints & Internal Routes": (
         "Internal endpoint exposure or protected route leakage"
     ),
     "DOM XSS Sinks": "Potential DOM-based cross-site scripting",
-    "Third-Party Libraries": (
-        "Outdated or vulnerable third-party dependencies"
-    ),
+    "Third-Party Libraries": ("Outdated or vulnerable third-party dependencies"),
     "Comment & Debug Metadata": (
         "Information leakage from comments or debug artifacts"
     ),
@@ -206,16 +195,10 @@ FINDING_CATEGORY_RISK_MAP = {
     "Stripe Key": "Payment credential disclosure",
     "Mailgun API Key": "Email provider credential leakage",
     "JWT": "Token exposure leading to authentication bypass",
-    "Forms & Inputs": (
-        "Potential form injection or insecure user input handling"
-    ),
+    "Forms & Inputs": ("Potential form injection or insecure user input handling"),
     "Meta & Public Keys": "Public metadata or configuration exposure",
-    "Deep Directory Probes": (
-        "Exposed sensitive directories or forgotten assets"
-    ),
-    "Subdomain Candidates": (
-        "Secondary surface area that may host weaker software"
-    ),
+    "Deep Directory Probes": ("Exposed sensitive directories or forgotten assets"),
+    "Subdomain Candidates": ("Secondary surface area that may host weaker software"),
     "Security Headers": "Missing HTTP security headers",
     "Suspicious Query Parameters": (
         "Potential open redirect, SSRF, or authentication bypass risk"
@@ -245,9 +228,7 @@ def extract_content_signals(content, source_label):
 
     for category, pattern in VULNERABILITY_PATTERNS.items():
         matches = re.findall(pattern, normalized_content)
-        unique_matches = list(
-            {m if isinstance(m, str) else m[0] for m in matches}
-        )
+        unique_matches = list({m if isinstance(m, str) else m[0] for m in matches})
         if unique_matches:
             findings[category] = unique_matches[:20]
 
@@ -322,9 +303,7 @@ def parse_proxy_string(proxy_string):
 class ScanStateDB:
     def __init__(self, path):
         self.path = Path(path)
-        self.conn = sqlite3.connect(
-            self.path, timeout=30.0, check_same_thread=False
-        )
+        self.conn = sqlite3.connect(self.path, timeout=30.0, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
@@ -374,9 +353,7 @@ class ScanStateDB:
     def persist_queue(self, queue):
         cur = self.conn.cursor()
         cur.execute("DELETE FROM queue")
-        cur.executemany(
-            "INSERT OR IGNORE INTO queue (url, depth) VALUES (?, ?)", queue
-        )
+        cur.executemany("INSERT OR IGNORE INTO queue (url, depth) VALUES (?, ?)", queue)
         self.conn.commit()
 
     def mark_page(self, url, depth=0, status="done"):
@@ -420,8 +397,7 @@ def safe_request(session, method, url, delay=0, **kwargs):
         return response
     except requests.exceptions.SSLError:
         print(
-            f"[-] Target {url} has invalid/expired SSL. "
-            "Skipping traffic inspection."
+            f"[-] Target {url} has invalid/expired SSL. " "Skipping traffic inspection."
         )
         return None
     except requests.exceptions.RequestException as e:
@@ -442,12 +418,8 @@ def fetch_and_extract_js_live(js_url, session, delay=0):
     findings = extract_content_signals(response.text, js_url)
     source_map_text = probe_js_source_map(js_url, session, delay=delay)
     if source_map_text:
-        findings.setdefault("Discovered JS Source Maps", []).append(
-            f"{js_url}.map"
-        )
-        findings.update(
-            extract_content_signals(source_map_text, js_url + ".map")
-        )
+        findings.setdefault("Discovered JS Source Maps", []).append(f"{js_url}.map")
+        findings.update(extract_content_signals(source_map_text, js_url + ".map"))
     return findings
 
 
@@ -457,9 +429,7 @@ def query_osv_vulnerabilities(package_name, version):
         "package": {"name": package_name, "ecosystem": "npm"},
     }
     try:
-        resp = requests.post(
-            "https://api.osv.dev/v1/query", json=payload, timeout=10
-        )
+        resp = requests.post("https://api.osv.dev/v1/query", json=payload, timeout=10)
         if resp.ok:
             data = resp.json()
             vulns = []
@@ -533,9 +503,7 @@ def verify_dom_xss(page_url):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             page = browser.new_page()
-            page.evaluate_on_new_document(
-                "() => { window.__dom_xss_test = false; }"
-            )
+            page.evaluate_on_new_document("() => { window.__dom_xss_test = false; }")
             page.goto(page_url, timeout=15000)
             page.evaluate(f"() => {{ window.__injected = '{payload}'; }}")
             result = page.evaluate("() => window.__dom_xss_test")
@@ -793,11 +761,7 @@ def crawl_internal_links(
 
                 for anchor in soup.find_all("a", href=True):
                     next_url = normalize_internal_link(anchor["href"], url)
-                    if (
-                        not next_url
-                        or next_url in queued
-                        or next_url in visited
-                    ):
+                    if not next_url or next_url in queued or next_url in visited:
                         continue
 
                     parsed_next = urllib.parse.urlparse(next_url)
@@ -894,12 +858,8 @@ def get_tls_info(base_url):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
 
-        with socket.create_connection(
-            (parsed.hostname, port), timeout=8
-        ) as sock:
-            with context.wrap_socket(
-                sock, server_hostname=parsed.hostname
-            ) as ssock:
+        with socket.create_connection((parsed.hostname, port), timeout=8) as sock:
+            with context.wrap_socket(sock, server_hostname=parsed.hostname) as ssock:
                 return {"tls_version": ssock.version() or "unknown"}
     except Exception as e:
         return {"tls_error": str(e)}
@@ -984,8 +944,7 @@ def write_sarif_output(output_path, payload):
     sarif_document = {
         "version": "2.1.0",
         "$schema": (
-            "https://schemastore.azurewebsites.net/schemas/json/"
-            "sarif-2.1.0.json"
+            "https://schemastore.azurewebsites.net/schemas/json/" "sarif-2.1.0.json"
         ),
         "runs": [
             {
@@ -1065,9 +1024,7 @@ def map_target_ecosystem(
                     state_store.add_finding(cat, item, page_url)
         param_signals = extract_query_parameter_signals(page_url)
         if param_signals:
-            findings.setdefault("Suspicious Query Parameters", []).extend(
-                param_signals
-            )
+            findings.setdefault("Suspicious Query Parameters", []).extend(param_signals)
             if state_store:
                 for item in param_signals:
                     state_store.add_finding(
@@ -1095,9 +1052,7 @@ def map_target_ecosystem(
             if xss_result:
                 findings.setdefault("Automated DOM XSS", []).append(xss_result)
                 if state_store:
-                    state_store.add_finding(
-                        "Automated DOM XSS", xss_result, page_url
-                    )
+                    state_store.add_finding("Automated DOM XSS", xss_result, page_url)
 
     deep_dirs = probe_deep_directories(base_url, session, delay=delay)
     subdomains = probe_subdomains(base_url, session, delay=delay)
@@ -1107,9 +1062,7 @@ def map_target_ecosystem(
     findings["Discovered Internal Links"] = list(internal_links)[:50]
     findings["Deep Directory Probes"] = deep_dirs[:25]
     findings["Subdomain Candidates"] = subdomains[:25]
-    findings["Security Headers"] = [
-        f"{k}: {v}" for k, v in header_status.items()
-    ]
+    findings["Security Headers"] = [f"{k}: {v}" for k, v in header_status.items()]
     findings["TLS Info"] = [f"{k}: {v}" for k, v in tls_status.items()]
 
     print_user_summary(findings)
@@ -1164,9 +1117,7 @@ def query_ai_engine_legacy(recon_data):
     else:
         # Fallback to local offline model if Ollama is installed locally
         print("\n[*] GEMINI_API_KEY environment variable not set.")
-        print(
-            "[*] Falling back to local offline AI model (Ollama - Llama3)..."
-        )
+        print("[*] Falling back to local offline AI model (Ollama - Llama3)...")
         try:
             local_payload = {
                 "model": "llama3",
@@ -1242,16 +1193,12 @@ def main():
     parser.add_argument(
         "--proxy",
         help=(
-            "Optional upstream proxy URL for Burp Suite, Tor, or other "
-            "interception."
+            "Optional upstream proxy URL for Burp Suite, Tor, or other " "interception."
         ),
     )
     parser.add_argument(
         "--state-db",
-        help=(
-            "Optional SQLite path for scan state persistence and "
-            "resume support."
-        ),
+        help=("Optional SQLite path for scan state persistence and " "resume support."),
     )
     parser.add_argument(
         "--resume",
@@ -1301,9 +1248,7 @@ def main():
                 "max_depth": args.max_depth,
                 "workers": args.workers,
                 "delay": args.delay,
-                "summary": (
-                    "Reconnaissance scan output for automated ingestion."
-                ),
+                "summary": ("Reconnaissance scan output for automated ingestion."),
             },
         )
         if args.output_json:
