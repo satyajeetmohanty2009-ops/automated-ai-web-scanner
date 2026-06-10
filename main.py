@@ -281,8 +281,6 @@ def get_random_headers(overrides=None):
     return headers
 
 
-
-
 def get_request_delay(base_delay):
     if base_delay <= 0:
         return 0.0
@@ -446,7 +444,6 @@ def query_osv_vulnerabilities(package_name, version):
     return []
 
 
-
 def detect_library_version_vulnerabilities(content):
     packages = {
         "jQuery Version": "jquery",
@@ -550,7 +547,6 @@ def load_security_reference_context():
             except Exception:  # nosec B110
                 pass
     return "\n".join(context)
-
 
 
 def build_finder_prompt(findings, reference_context=""):
