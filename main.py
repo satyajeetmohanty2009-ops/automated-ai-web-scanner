@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from google import genai
 from google.genai import types
 
-# Suppress insecure TLS warnings so expired or invalid certificates do not flood logs
+# Suppress insecure TLS warnings for expired/invalid certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Define extraction regex rules to strip away boilerplate JS
@@ -71,78 +71,162 @@ SECURITY_HEADER_LIST = [
 ]
 
 USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.6425.181 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.37 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/127.0.908.100 Safari/537.36",
+    (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0.6425.181 Safari/537.36"
+    ),
+    (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6_4) AppleWebKit/605.1.15 "
+        "(KHTML, like Gecko) Version/17.5 Safari/605.1.15"
+    ),
+    (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/125.0.6422.37 Safari/537.36"
+    ),
+    (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 "
+        "Firefox/126.0"
+    ),
+    (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 "
+        "Safari/605.1.15"
+    ),
+    (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Edg/127.0.908.100 Safari/537.36"
+    ),
 ]
 
 VULNERABILITY_PATTERNS = {
-    "Potential Credentials": r'(?i)(password|passwd|master_key|secret|credential|privkey|client_secret|access_token|secret_key)\s*[:=]\s*["\']([^"\']+)["\']',
-    "API Keys & Cloud Tokens": r'(?i)(aws_key|api_key|service_account|bearer|jwt|token|stripe_.*|sk_live_.*|sk_test_.*|sg\.[A-Za-z0-9_-]{16,}|EAACEdEose0cBA[0-9A-Za-z]+)\s*[:=]\s*["\']?([^"\'\s]+)["\']?',
-    "Authentication Tokens": r"(?i)(xoxb-[0-9A-Za-z\-]{10,}|xoxp-[0-9A-Za-z\-]{10,}|raven|jwt|eyJ[0-9A-Za-z_-]{10,})",
-    "Endpoints & Internal Routes": r'["\'](\/[-a-zA-Z0-9_@:%_\+.~#?&/=]+|\S+\.amazonaws\.com\S*|\S+\.blob\.core\.windows\.net\S*|\S+\.storage\.googleapis\.com\S*)["\']',
+    "Potential Credentials": (
+        r"(?i)(password|passwd|master_key|secret|credential|privkey|"
+        r'client_secret|access_token|secret_key)\s*[:=]\s*["\']([^"\']+)["\']'
+    ),
+    "API Keys & Cloud Tokens": (
+        r"(?i)(aws_key|api_key|service_account|bearer|jwt|token|stripe_.*|"
+        r"sk_live_.*|sk_test_.*|sg\.[A-Za-z0-9_-]{16,}|"
+        r'EAACEdEose0cBA[0-9A-Za-z]+)\s*[:=]\s*["\']?([^"\'\s]+)["\']?'
+    ),
+    "Authentication Tokens": (
+        r"(?i)(xoxb-[0-9A-Za-z\-]{10,}|xoxp-[0-9A-Za-z\-]{10,}|raven|jwt|"
+        r"eyJ[0-9A-Za-z_-]{10,})"
+    ),
+    "Endpoints & Internal Routes": (
+        r"['\"](\/[-a-zA-Z0-9_@:%_\+.~#?&/=]+|\S+\.amazonaws\.com\S*|"
+        r"\S+\.blob\.core\.windows\.net\S*|"
+        r"\S+\.storage\.googleapis\.com\S*)['\"]"
+    ),
 }
 
 JS_SIGNAL_PATTERNS = {
-    "DOM XSS Sinks": r'(?i)(eval\(|document\.write\(|innerHTML\s*=|outerHTML\s*=|insertAdjacentHTML\(|setAttribute\(\s*["\'](src|href|data|action)["\'])',
-    "Third-Party Libraries": r"(?i)(jquery[-\.][0-9]+|angular[-\.][0-9]+|vue[-\.][0-9]+|bootstrap[-\.][0-9]+|react[-\.][0-9]+|ember[-\.][0-9]+)",
-    "Comment & Debug Metadata": r"(?i)(TODO|FIXME|DEBUG|NOTE|console\.log\(|console\.debug\(|\/\*.*?\*\/|\/\/.*$)",
-    "Cloud Storage Signatures": r"(?i)(s3:\/\/|gs:\/\/|blob:\/\/|\.s3\.amazonaws\.com|\.storage\.googleapis\.com|\.blob\.core\.windows\.net|\.digitaloceanspaces\.com)",
+    "DOM XSS Sinks": (
+        r"(?i)(eval\(|document\.write\(|innerHTML\s*=|outerHTML\s*=|"
+        r"insertAdjacentHTML\(|"
+        r'setAttribute\(\s*["\'](src|href|data|action)["\'])'
+    ),
+    "Third-Party Libraries": (
+        r"(?i)(jquery[-\.][0-9]+|angular[-\.][0-9]+|vue[-\.][0-9]+|"
+        r"bootstrap[-\.][0-9]+|react[-\.][0-9]+|ember[-\.][0-9]+)"
+    ),
+    "Comment & Debug Metadata": (
+        r"(?i)(TODO|FIXME|DEBUG|NOTE|console\.log\(|console\.debug\(|"
+        r"\/\*.*?\*\/|\/\/.*$)"
+    ),
+    "Cloud Storage Signatures": (
+        r"(?i)(s3:\/\/|gs:\/\/|blob:\/\/|\.s3\.amazonaws\.com|"
+        r"\.storage\.googleapis\.com|\.blob\.core\.windows\.net|"
+        r"\.digitaloceanspaces\.com)"
+    ),
 }
 
 HTML_SIGNAL_PATTERNS = {
-    "Forms & Inputs": r"(?i)<form[^>]*>|<input[^>]*>|<textarea[^>]*>|<button[^>]*>|<select[^>]*>",
-    "Meta & Public Keys": r"(?i)<meta[^>]+>|<link[^>]+>|<script[^>]+>|<style[^>]+>",
-    "Insecure Form Actions": r'(?i)<form[^>]+action\s*=\s*["\']http:\/\/',
-    "Mixed Content Assets": r'(?i)<(script|img|link|iframe)[^>]+src\s*=\s*["\']http:\/\/',
+    "Forms & Inputs": (
+        r"(?i)<form[^>]*>|<input[^>]*>|<textarea[^>]*>|<button[^>]*>|"
+        r"<select[^>]*>"
+    ),
+    "Meta & Public Keys": (
+        r"(?i)<meta[^>]+>|<link[^>]+>|<script[^>]+>|<style[^>]+>"
+    ),
+    "Insecure Form Actions": (r'(?i)<form[^>]+action\s*=\s*["\']http:\/\/'),
+    "Mixed Content Assets": (
+        r'(?i)<(script|img|link|iframe)[^>]+src\s*=\s*["\']http:\/\/'
+    ),
 }
 
 JS_LIBRARY_VERSION_PATTERNS = {
-    "jQuery Version": r"(?i)jquery(?:\.min)?\.js(?:\?ver=|\-)([0-9]+\.[0-9]+\.[0-9]+)",
-    "Angular Version": r"(?i)angular(?:\.min)?\.js(?:\?ver=|\-)([0-9]+\.[0-9]+\.[0-9]+)",
-    "Vue Version": r"(?i)vue(?:\.min)?\.js(?:\?ver=|\-)([0-9]+\.[0-9]+\.[0-9]+)",
-    "React Version": r"(?i)react(?:\.min)?\.js(?:\?ver=|\-)([0-9]+\.[0-9]+\.[0-9]+)",
+    "jQuery Version": (
+        r"(?i)jquery(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
+    ),
+    "Angular Version": (
+        r"(?i)angular(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
+    ),
+    "Vue Version": (
+        r"(?i)vue(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
+    ),
+    "React Version": (
+        r"(?i)react(?:\.min)?\.js(?:\?ver=|\-)" r"([0-9]+\.[0-9]+\.[0-9]+)"
+    ),
 }
 
 URL_PARAMETER_RISK_PATTERNS = {
-    "Suspicious Query Parameters": r"(?i)([\?&](redirect|next|url|return|continue|callback|token|session|auth|state)=)",
+    "Suspicious Query Parameters": (
+        r"(?i)([\?&](redirect|next|url|return|continue|callback|token|"
+        r"session|auth|state)=)"
+    ),
 }
 
 TOKEN_PATTERNS = {
-    "Slack Webhook": r"(?i)https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9_\/]+",
-    "Stripe Key": r"(?i)sk_(live|test)_[0-9A-Za-z]{24,}",
-    "Mailgun API Key": r"(?i)key-[0-9A-Za-z]{32}",
-    "JWT": r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+",
+    "Slack Webhook": (
+        r"(?i)https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9_\/]+"
+    ),
+    "Stripe Key": (r"(?i)sk_(live|test)_[0-9A-Za-z]{24,}"),
+    "Mailgun API Key": (r"(?i)key-[0-9A-Za-z]{32}"),
+    "JWT": (r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"),
 }
 
 FINDING_CATEGORY_RISK_MAP = {
     "Potential Credentials": "Secret or credential exposure",
-    "API Keys & Cloud Tokens": "API key leakage or cloud credential disclosure",
+    "API Keys & Cloud Tokens": (
+        "API key leakage or cloud credential disclosure"
+    ),
     "Authentication Tokens": "Session/token theft or credential reuse risk",
-    "Endpoints & Internal Routes": "Internal endpoint exposure or protected route leakage",
+    "Endpoints & Internal Routes": (
+        "Internal endpoint exposure or protected route leakage"
+    ),
     "DOM XSS Sinks": "Potential DOM-based cross-site scripting",
-    "Third-Party Libraries": "Outdated or vulnerable third-party dependencies",
-    "Comment & Debug Metadata": "Information leakage from comments or debug artifacts",
+    "Third-Party Libraries": (
+        "Outdated or vulnerable third-party dependencies"
+    ),
+    "Comment & Debug Metadata": (
+        "Information leakage from comments or debug artifacts"
+    ),
     "Cloud Storage Signatures": "Public cloud storage or object exposure",
     "Slack Webhook": "Potential secret webhook exposure",
     "Stripe Key": "Payment credential disclosure",
     "Mailgun API Key": "Email provider credential leakage",
     "JWT": "Token exposure leading to authentication bypass",
-    "Forms & Inputs": "Potential form injection or insecure user input handling",
+    "Forms & Inputs": (
+        "Potential form injection or insecure user input handling"
+    ),
     "Meta & Public Keys": "Public metadata or configuration exposure",
-    "Deep Directory Probes": "Exposed sensitive directories or forgotten assets",
-    "Subdomain Candidates": "Secondary surface area that may host weaker software",
+    "Deep Directory Probes": (
+        "Exposed sensitive directories or forgotten assets"
+    ),
+    "Subdomain Candidates": (
+        "Secondary surface area that may host weaker software"
+    ),
     "Security Headers": "Missing HTTP security headers",
-    "Suspicious Query Parameters": "Potential open redirect, SSRF, or authentication bypass risk",
+    "Suspicious Query Parameters": (
+        "Potential open redirect, SSRF, or authentication bypass risk"
+    ),
     "TLS Info": "Weak or outdated TLS configuration",
 }
 
 
 def is_safe_target(url):
-    """Returns False if the target points to a local or private network range."""
+    """Returns False if the target points to a local or private network
+    range."""
     try:
         hostname = urlparse(url).hostname
         if not hostname:
@@ -161,7 +245,9 @@ def extract_content_signals(content, source_label):
 
     for category, pattern in VULNERABILITY_PATTERNS.items():
         matches = re.findall(pattern, normalized_content)
-        unique_matches = list({m if isinstance(m, str) else m[0] for m in matches})
+        unique_matches = list(
+            {m if isinstance(m, str) else m[0] for m in matches}
+        )
         if unique_matches:
             findings[category] = unique_matches[:20]
 
@@ -201,7 +287,10 @@ def extract_content_signals(content, source_label):
 def get_random_headers(overrides=None):
     headers = {
         "User-Agent": random.choice(USER_AGENTS),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/webp,*/*;q=0.8"
+        ),
         "Accept-Language": "en-US,en;q=0.9",
         "Accept-Encoding": "gzip, deflate, br",
         "Connection": "keep-alive",
@@ -233,7 +322,9 @@ def parse_proxy_string(proxy_string):
 class ScanStateDB:
     def __init__(self, path):
         self.path = Path(path)
-        self.conn = sqlite3.connect(self.path, timeout=30.0, check_same_thread=False)
+        self.conn = sqlite3.connect(
+            self.path, timeout=30.0, check_same_thread=False
+        )
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
@@ -265,7 +356,8 @@ class ScanStateDB:
     def seed_url(self, url, depth=0):
         cur = self.conn.cursor()
         cur.execute(
-            "INSERT OR IGNORE INTO queue (url, depth) VALUES (?, ?)", (url, depth)
+            "INSERT OR IGNORE INTO queue (url, depth) VALUES (?, ?)",
+            (url, depth),
         )
         self.conn.commit()
 
@@ -282,13 +374,18 @@ class ScanStateDB:
     def persist_queue(self, queue):
         cur = self.conn.cursor()
         cur.execute("DELETE FROM queue")
-        cur.executemany("INSERT OR IGNORE INTO queue (url, depth) VALUES (?, ?)", queue)
+        cur.executemany(
+            "INSERT OR IGNORE INTO queue (url, depth) VALUES (?, ?)", queue
+        )
         self.conn.commit()
 
     def mark_page(self, url, depth=0, status="done"):
         cur = self.conn.cursor()
         cur.execute(
-            "INSERT OR REPLACE INTO pages (url, depth, status, last_seen) VALUES (?, ?, ?, ?)",
+            (
+                "INSERT OR REPLACE INTO pages (url, depth, status, last_seen) "
+                "VALUES (?, ?, ?, ?)"
+            ),
             (url, depth, status, datetime.utcnow().isoformat() + "Z"),
         )
         self.conn.commit()
@@ -322,7 +419,10 @@ def safe_request(session, method, url, delay=0, **kwargs):
         response = request_fn(url, headers=headers, **kwargs)
         return response
     except requests.exceptions.SSLError:
-        print(f"[-] Target {url} has invalid/expired SSL. Skipping traffic inspection.")
+        print(
+            f"[-] Target {url} has invalid/expired SSL. "
+            "Skipping traffic inspection."
+        )
         return None
     except requests.exceptions.RequestException as e:
         print(f"[-] Network connection error on {url}: {e}")
@@ -342,8 +442,12 @@ def fetch_and_extract_js_live(js_url, session, delay=0):
     findings = extract_content_signals(response.text, js_url)
     source_map_text = probe_js_source_map(js_url, session, delay=delay)
     if source_map_text:
-        findings.setdefault("Discovered JS Source Maps", []).append(f"{js_url}.map")
-        findings.update(extract_content_signals(source_map_text, js_url + ".map"))
+        findings.setdefault("Discovered JS Source Maps", []).append(
+            f"{js_url}.map"
+        )
+        findings.update(
+            extract_content_signals(source_map_text, js_url + ".map")
+        )
     return findings
 
 
@@ -353,7 +457,9 @@ def query_osv_vulnerabilities(package_name, version):
         "package": {"name": package_name, "ecosystem": "npm"},
     }
     try:
-        resp = requests.post("https://api.osv.dev/v1/query", json=payload, timeout=10)
+        resp = requests.post(
+            "https://api.osv.dev/v1/query", json=payload, timeout=10
+        )
         if resp.ok:
             data = resp.json()
             vulns = []
@@ -427,7 +533,9 @@ def verify_dom_xss(page_url):
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             page = browser.new_page()
-            page.evaluate_on_new_document("() => { window.__dom_xss_test = false; }")
+            page.evaluate_on_new_document(
+                "() => { window.__dom_xss_test = false; }"
+            )
             page.goto(page_url, timeout=15000)
             page.evaluate(f"() => {{ window.__injected = '{payload}'; }}")
             result = page.evaluate("() => window.__dom_xss_test")
@@ -475,8 +583,9 @@ def load_security_reference_context():
 
 def build_finder_prompt(findings, reference_context=""):
     prompt = (
-        "You are The Finder: Identify only credible vulnerability signals from the following reconnaissance output. "
-        "Do not hallucinate. Flag only issues with strong evidence.\n\n"
+        "You are The Finder: Identify only credible vulnerability signals "
+        "from the following reconnaissance output. Do not hallucinate. "
+        "Flag only issues with strong evidence.\n\n"
     )
     if reference_context:
         prompt += f"Security reference context:\n{reference_context}\n\n"
@@ -491,13 +600,18 @@ def build_finder_prompt(findings, reference_context=""):
 
 def build_critic_prompt(finder_result, reference_context=""):
     prompt = (
-        "You are The Critic: Review the candidate findings below and attempt to disprove them. "
-        "If the evidence does not support a finding, label it as low-confidence or discard it."
+        "You are The Critic: Review the candidate findings below and attempt "
+        "to disprove them. If the evidence does not support a finding, label "
+        "it as low-confidence or discard it."
     )
     if reference_context:
         prompt += f"\nSecurity reference context:\n{reference_context}\n"
     prompt += f"\n\nCandidate findings:\n{finder_result}\n\n"
-    prompt += "For each finding, decide whether it is high-confidence, medium-confidence, or unsupported. Return only the validated, high-confidence issues."
+    prompt += (
+        "For each finding, decide whether it is high-confidence, "
+        "medium-confidence, or unsupported. Return only the validated, "
+        "high-confidence issues."
+    )
     return prompt
 
 
@@ -523,11 +637,13 @@ def run_ai_prompt(prompt_text, system_instruction, gemini_api_key=None):
     try:
         local_payload = {
             "model": "llama3",
-            "prompt": f"{system_instruction}\n\n{prompt_text}",
+            "prompt": (f"{system_instruction}\n\n{prompt_text}"),
             "stream": False,
         }
         res = requests.post(
-            "http://localhost:11434/api/generate", json=local_payload, timeout=30
+            "http://localhost:11434/api/generate",
+            json=local_payload,
+            timeout=30,
         )
         if res.ok:
             return res.text
@@ -544,13 +660,15 @@ def query_ai_engine(recon_data, findings):
 
     finder_system = (
         "You are The Finder: a strict, cynical penetration testing assistant. "
-        "Identify only high-confidence vulnerabilities from the reconnaissance output. "
-        "If the evidence is incomplete, do not infer a vulnerability."
+        "Identify only high-confidence vulnerabilities from the "
+        "reconnaissance output. If the evidence is incomplete, do not infer "
+        "a vulnerability."
     )
 
     critic_system = (
-        "You are The Critic: a senior security auditor. "
-        "Review the candidate findings and discard anything that cannot be justified by strong evidence."
+        "You are The Critic: a senior security auditor. Review the candidate "
+        "findings and discard anything that cannot be justified by strong "
+        "evidence."
     )
 
     prompt_1 = build_finder_prompt(findings, reference_context)
@@ -567,7 +685,12 @@ def query_ai_engine(recon_data, findings):
     )
     print(critic_output)
     return critic_output
-    if not href or href.startswith("javascript:") or href.startswith("mailto:"):
+
+
+def normalize_internal_link(href, base_url):
+    if not href:
+        return None
+    if href.startswith("javascript:") or href.startswith("mailto:"):
         return None
 
     try:
@@ -607,7 +730,13 @@ def extract_query_parameter_signals(url):
 
 
 def crawl_internal_links(
-    base_url, session, max_depth=2, max_pages=200, workers=20, delay=0, state_store=None
+    base_url,
+    session,
+    max_depth=2,
+    max_pages=200,
+    workers=20,
+    delay=0,
+    state_store=None,
 ):
     parsed_base = urllib.parse.urlparse(base_url)
     base_netloc = parsed_base.netloc.lower()
@@ -664,7 +793,11 @@ def crawl_internal_links(
 
                 for anchor in soup.find_all("a", href=True):
                     next_url = normalize_internal_link(anchor["href"], url)
-                    if not next_url or next_url in queued or next_url in visited:
+                    if (
+                        not next_url
+                        or next_url in queued
+                        or next_url in visited
+                    ):
                         continue
 
                     parsed_next = urllib.parse.urlparse(next_url)
@@ -693,7 +826,12 @@ def probe_deep_directories(base_url, session, delay=0):
         )
         if not res:
             res = safe_request(
-                session, "get", url, allow_redirects=True, timeout=7, delay=delay
+                session,
+                "get",
+                url,
+                allow_redirects=True,
+                timeout=7,
+                delay=delay,
             )
         if res and res.status_code < 400:
             found.append(f"{url} ({res.status_code})")
@@ -709,11 +847,21 @@ def probe_subdomains(base_url, session, delay=0):
     for token in SUBDOMAIN_WORDS:
         candidate = f"{scheme}://{token}.{domain}"
         res = safe_request(
-            session, "head", candidate, allow_redirects=True, timeout=7, delay=delay
+            session,
+            "head",
+            candidate,
+            allow_redirects=True,
+            timeout=7,
+            delay=delay,
         )
         if not res:
             res = safe_request(
-                session, "get", candidate, allow_redirects=True, timeout=7, delay=delay
+                session,
+                "get",
+                candidate,
+                allow_redirects=True,
+                timeout=7,
+                delay=delay,
             )
         if res and res.status_code < 400:
             found.append(f"{candidate} ({res.status_code})")
@@ -746,8 +894,12 @@ def get_tls_info(base_url):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
 
-        with socket.create_connection((parsed.hostname, port), timeout=8) as sock:
-            with context.wrap_socket(sock, server_hostname=parsed.hostname) as ssock:
+        with socket.create_connection(
+            (parsed.hostname, port), timeout=8
+        ) as sock:
+            with context.wrap_socket(
+                sock, server_hostname=parsed.hostname
+            ) as ssock:
                 return {"tls_version": ssock.version() or "unknown"}
     except Exception as e:
         return {"tls_error": str(e)}
@@ -756,7 +908,8 @@ def get_tls_info(base_url):
 def print_user_summary(findings):
     if not findings:
         print(
-            "\n[!] No clear vulnerability indicators were found during reconnaissance."
+            "\n[!] No clear vulnerability indicators were found during "
+            "reconnaissance."
         )
         return
 
@@ -830,7 +983,10 @@ def write_sarif_output(output_path, payload):
 
     sarif_document = {
         "version": "2.1.0",
-        "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
+        "$schema": (
+            "https://schemastore.azurewebsites.net/schemas/json/"
+            "sarif-2.1.0.json"
+        ),
         "runs": [
             {
                 "tool": {
@@ -865,7 +1021,8 @@ def map_target_ecosystem(
     resume=False,
     enable_dom_xss=False,
 ):
-    """Scrapes the target to collect asset, header, directory, and JS reconnaissance data."""
+    """Scrapes the target to collect asset, header, directory, and JS
+    reconnaissance data."""
     print(f"[*] Analyzing target infrastructure: {base_url}")
     session = requests.Session()
     if proxy:
@@ -908,7 +1065,9 @@ def map_target_ecosystem(
                     state_store.add_finding(cat, item, page_url)
         param_signals = extract_query_parameter_signals(page_url)
         if param_signals:
-            findings.setdefault("Suspicious Query Parameters", []).extend(param_signals)
+            findings.setdefault("Suspicious Query Parameters", []).extend(
+                param_signals
+            )
             if state_store:
                 for item in param_signals:
                     state_store.add_finding(
@@ -936,7 +1095,9 @@ def map_target_ecosystem(
             if xss_result:
                 findings.setdefault("Automated DOM XSS", []).append(xss_result)
                 if state_store:
-                    state_store.add_finding("Automated DOM XSS", xss_result, page_url)
+                    state_store.add_finding(
+                        "Automated DOM XSS", xss_result, page_url
+                    )
 
     deep_dirs = probe_deep_directories(base_url, session, delay=delay)
     subdomains = probe_subdomains(base_url, session, delay=delay)
@@ -946,7 +1107,9 @@ def map_target_ecosystem(
     findings["Discovered Internal Links"] = list(internal_links)[:50]
     findings["Deep Directory Probes"] = deep_dirs[:25]
     findings["Subdomain Candidates"] = subdomains[:25]
-    findings["Security Headers"] = [f"{k}: {v}" for k, v in header_status.items()]
+    findings["Security Headers"] = [
+        f"{k}: {v}" for k, v in header_status.items()
+    ]
     findings["TLS Info"] = [f"{k}: {v}" for k, v in tls_status.items()]
 
     print_user_summary(findings)
@@ -963,15 +1126,21 @@ def map_target_ecosystem(
 
 
 def query_ai_engine_legacy(recon_data):
-    """Pipes data directly into the AI engine and prints a real-time live response stream."""
+    """Pipes data directly into the AI engine and prints a real-time live
+    response stream."""
     gemini_api_key = os.environ.get("GEMINI_API_KEY")
 
     system_instruction = (
-        "You are a strict, cynical penetration testing assistant. If the evidence is incomplete, do not infer a vulnerability. "
-        "Only flag high-confidence issues. Review the extracted reconnaissance metrics and identify only those vulnerability classes supported by credible evidence. "
-        "Flag sensitive data leaks, insecure headers, weak TLS, dangerous client-side sinks, outdated libraries, exposed directories, hidden subdomains, and risky query parameters. "
-        "Summarize findings clearly and prioritize the highest-severity issues first. "
-        "Provide concise recommendations for immediate remediation or deeper manual testing."
+        "You are a strict, cynical penetration testing assistant. If the "
+        "evidence is incomplete, do not infer a vulnerability. Only flag "
+        "high-confidence issues. Review the extracted reconnaissance metrics "
+        "and identify only those vulnerability classes supported by credible "
+        "evidence. Flag sensitive data leaks, insecure headers, weak TLS, "
+        "dangerous client-side sinks, outdated libraries, exposed "
+        "directories, hidden subdomains, and risky query parameters. "
+        "Summarize findings clearly and prioritize the highest-severity "
+        "issues first. Provide concise recommendations for immediate "
+        "remediation or deeper manual testing."
     )
 
     if gemini_api_key:
@@ -993,9 +1162,11 @@ def query_ai_engine_legacy(recon_data):
         except Exception as e:
             print(f"[-] Cloud API Error: {e}")
     else:
-        # Fallback to local offline model if you run Ollama locally on your computer
+        # Fallback to local offline model if Ollama is installed locally
         print("\n[*] GEMINI_API_KEY environment variable not set.")
-        print("[*] Falling back to local offline AI model (Ollama - Llama3)...")
+        print(
+            "[*] Falling back to local offline AI model (Ollama - Llama3)..."
+        )
         try:
             local_payload = {
                 "model": "llama3",
@@ -1004,7 +1175,9 @@ def query_ai_engine_legacy(recon_data):
             }
             # Stream response directly from localhost
             res = requests.post(
-                "http://localhost:11434/api/generate", json=local_payload, stream=True
+                "http://localhost:11434/api/generate",
+                json=local_payload,
+                stream=True,
             )
             print("\n=== LIVE LOCAL AI ANALYSIS ===\n")
             for line in res.iter_lines():
@@ -1016,7 +1189,8 @@ def query_ai_engine_legacy(recon_data):
             print("\n==============================\n")
         except Exception:
             print(
-                "[-] Local AI engine not detected. Please install Ollama or export your GEMINI_API_KEY."
+                "[-] Local AI engine not detected. Please install Ollama or "
+                "export your GEMINI_API_KEY."
             )
 
 
@@ -1024,15 +1198,22 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Scan a website for reconnaissance signals and generate a vulnerability-oriented AI prompt."
+        description=(
+            "Scan a website for reconnaissance signals and generate a "
+            "vulnerability-oriented AI prompt."
+        )
     )
     parser.add_argument(
-        "target", help="Target base URL to scan, e.g. https://example.com"
+        "target",
+        help=("Target base URL to scan, e.g. https://example.com"),
     )
     parser.add_argument(
         "--no-ai",
         action="store_true",
-        help="Do not invoke the AI engine; only perform reconnaissance and summary output.",
+        help=(
+            "Do not invoke the AI engine; only perform reconnaissance "
+            "and summary output."
+        ),
     )
     parser.add_argument(
         "--max-pages",
@@ -1060,11 +1241,17 @@ def main():
     )
     parser.add_argument(
         "--proxy",
-        help="Optional upstream proxy URL for Burp Suite, Tor, or other interception.",
+        help=(
+            "Optional upstream proxy URL for Burp Suite, Tor, or other "
+            "interception."
+        ),
     )
     parser.add_argument(
         "--state-db",
-        help="Optional SQLite path for scan state persistence and resume support.",
+        help=(
+            "Optional SQLite path for scan state persistence and "
+            "resume support."
+        ),
     )
     parser.add_argument(
         "--resume",
@@ -1074,12 +1261,19 @@ def main():
     parser.add_argument(
         "--dom-xss",
         action="store_true",
-        help="Enable optional headless DOM XSS verification when Playwright is available.",
+        help=(
+            "Enable optional headless DOM XSS verification when "
+            "Playwright is available."
+        ),
     )
     parser.add_argument(
-        "--output-json", help="Write structured JSON scan results to this file."
+        "--output-json",
+        help="Write structured JSON scan results to this file.",
     )
-    parser.add_argument("--output-sarif", help="Write SARIF scan results to this file.")
+    parser.add_argument(
+        "--output-sarif",
+        help="Write SARIF scan results to this file.",
+    )
     args = parser.parse_args()
 
     if not is_safe_target(args.target):
@@ -1107,7 +1301,9 @@ def main():
                 "max_depth": args.max_depth,
                 "workers": args.workers,
                 "delay": args.delay,
-                "summary": "Reconnaissance scan output for automated ingestion.",
+                "summary": (
+                    "Reconnaissance scan output for automated ingestion."
+                ),
             },
         )
         if args.output_json:
