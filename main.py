@@ -8,13 +8,18 @@ import sqlite3
 import time
 from datetime import datetime
 from pathlib import Path
+import urllib3
 import urllib.parse
+from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from bs4 import BeautifulSoup
 # Google GenAI SDK (Modern standard for Gemini)
 from google import genai
 from google.genai import types
+
+# Suppress insecure TLS warnings so expired or invalid certificates do not flood logs
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Define extraction regex rules to strip away boilerplate JS
 SENSITIVE_PATHS = [
@@ -105,6 +110,20 @@ FINDING_CATEGORY_RISK_MAP = {
     "TLS Info": "Weak or outdated TLS configuration",
 }
 
+def is_safe_target(url):
+    """Returns False if the target points to a local or private network range."""
+    try:
+        hostname = urlparse(url).hostname
+        if not hostname:
+            return False
+        ip = socket.gethostbyname(hostname)
+        if ip.startswith(("127.", "192.168.", "10.", "172.16.", "169.254.")):
+            return False
+        return True
+    except socket.gaierror:
+        return False
+
+
 def extract_content_signals(content, source_label):
     findings = {}
     normalized_content = content if isinstance(content, str) else str(content)
@@ -183,7 +202,7 @@ def parse_proxy_string(proxy_string):
 class ScanStateDB:
     def __init__(self, path):
         self.path = Path(path)
-        self.conn = sqlite3.connect(self.path, check_same_thread=False)
+        self.conn = sqlite3.connect(self.path, timeout=30.0, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._create_tables()
 
@@ -264,6 +283,7 @@ class ScanStateDB:
 def safe_request(session, method, url, delay=0, **kwargs):
     headers = kwargs.pop("headers", None)
     headers = get_random_headers(headers)
+    kwargs.setdefault("verify", False)
     effective_delay = get_request_delay(delay)
     if effective_delay > 0:
         time.sleep(effective_delay)
@@ -271,7 +291,13 @@ def safe_request(session, method, url, delay=0, **kwargs):
         request_fn = getattr(session, method)
         response = request_fn(url, headers=headers, **kwargs)
         return response
-    except (requests.RequestException, Exception):
+    except requests.exceptions.SSLError:
+        print(f"[-] Target {url} has invalid/expired SSL. Skipping traffic inspection.")
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"[-] Network connection error on {url}: {e}")
+        return None
+    except Exception:
         return None
 
 
@@ -915,6 +941,10 @@ def main():
     parser.add_argument("--output-json", help="Write structured JSON scan results to this file.")
     parser.add_argument("--output-sarif", help="Write SARIF scan results to this file.")
     args = parser.parse_args()
+
+    if not is_safe_target(args.target):
+        print("Error: Scanning internal networks is forbidden.")
+        exit(1)
 
     prompt_data, findings = map_target_ecosystem(
         args.target,
