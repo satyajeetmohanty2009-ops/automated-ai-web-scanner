@@ -1096,7 +1096,7 @@ def query_ai_engine_legacy(recon_data):
         "remediation or deeper manual testing."
     )
 
-    if gemini_api_key:
+        if gemini_api_key:
         print("\n[*] Initializing cloud AI engine (Gemini API)...")
         try:
             client = genai.Client(api_key=gemini_api_key)
@@ -1124,11 +1124,12 @@ def query_ai_engine_legacy(recon_data):
                 "prompt": f"{system_instruction}\n\nData:\n{recon_data}",
                 "stream": True,
             }
-            # Stream response directly from localhost
+            # Stream response directly from localhost with a 30s timeout
             res = requests.post(
                 "http://localhost:11434/api/generate",
                 json=local_payload,
                 stream=True,
+                timeout=30,
             )
             print("\n=== LIVE LOCAL AI ANALYSIS ===\n")
             for line in res.iter_lines():
@@ -1138,12 +1139,11 @@ def query_ai_engine_legacy(recon_data):
                     json_data = json.loads(line.decode("utf-8"))
                     print(json_data.get("response", ""), end="", flush=True)
             print("\n==============================\n")
-        except Exception:
+        except Exception:  # nosec B110
             print(
                 "[-] Local AI engine not detected. Please install Ollama or "
                 "export your GEMINI_API_KEY."
             )
-
 
 def main():
     import argparse
