@@ -1,0 +1,5 @@
+{
+  "A1-Injection": "Injection flaws such as SQL, NoSQL, OS, and LDAP injection occur when untrusted data is sent to an interpreter.",
+  "A2-Broken Authentication": "Authentication and session management functions are often implemented incorrectly, allowing attackers to compromise passwords or session tokens.",
+  "A3-Sensitive Data Exposure": "Sensitive data is not properly protected, allowing disclosure to unauthorized parties."
+}

@@ -1,0 +1,7 @@
+beautifulsoup4
+black
+bandit
+flake8
+google-genai
+playwright
+requests
